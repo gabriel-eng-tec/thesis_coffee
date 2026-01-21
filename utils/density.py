@@ -6,21 +6,24 @@ import json
 import numpy as np
 from tqdm import tqdm
 from scipy.ndimage import gaussian_filter
+from pathlib import Path
+from config import TRAIN_DATA, VAL_DATA, DENSITY_SIGMA, DENSITY_PREVIEW, DENSITY_PREVIEW_N
 
 # --------------------------
-# Parámetros configurables
+# Parámetros configurables (importados desde config.py)
 # --------------------------
+# Cambiar 'gen' a 'train' o 'valid' para generar densidades de ese split
 gen = "train"
-dataset_dir = f"../dataset/coffee_Fruit_Maturity_yolo/{gen}"
-IMG_FOLDER = f"{dataset_dir}/images"          # Carpeta con imágenes
-LABEL_FOLDER = f"{dataset_dir}/labels"        # Carpeta con labels YOLO
-OUTPUT_FOLDER = f"{dataset_dir}/density_h5"   # Carpeta donde se guardan los .h5 y PNG
-SIGMA = 7                         # Sigma de la gaussiana para difuminar puntos
-PREVIEW = False                   # True para generar preview de mapas sobre imagen
-PREVIEW_N = 5                    # Número de imágenes para guardar preview
+data_split_dir = TRAIN_DATA if gen == "train" else VAL_DATA
+IMG_FOLDER = data_split_dir / "images"
+LABEL_FOLDER = data_split_dir / "labels"
+OUTPUT_FOLDER = data_split_dir / "density_h5"
+SIGMA = DENSITY_SIGMA
+PREVIEW = DENSITY_PREVIEW
+PREVIEW_N = DENSITY_PREVIEW_N
 JSON_FILENAME = f"cdmenet_coffee_{gen}.json"
 
-os.makedirs(OUTPUT_FOLDER, exist_ok=True)
+OUTPUT_FOLDER.mkdir(parents=True, exist_ok=True)
 
 # --------------------------
 # Función para convertir labels YOLO a puntos
@@ -82,44 +85,47 @@ def save_density_image(density_map, save_path):
 # Main
 # --------------------------
 def main():
-    label_files = sorted(glob.glob(os.path.join(LABEL_FOLDER, "*.txt")))
+    label_files = sorted(glob.glob(str(LABEL_FOLDER / "*.txt")))
     print(f"Encontrados {len(label_files)} archivos de etiquetas YOLO.")
 
     json_list = []
 
     for i, label_file in enumerate(tqdm(label_files)):
-        img_file = os.path.join(IMG_FOLDER, os.path.basename(label_file).replace(".txt", ".jpg"))
-        if not os.path.exists(img_file):
+        img_file = IMG_FOLDER / Path(label_file).stem / ".jpg"
+        if not img_file.exists():
+            img_file = IMG_FOLDER / (Path(label_file).stem + ".png")
+        if not img_file.exists():
             continue
 
-        img = cv2.imread(img_file)
+        import cv2
+        img = cv2.imread(str(img_file))
         points = yolo_to_points(label_file, img.shape)
         density_map = generate_density_map(points, img.shape)
 
         # Guardar .h5
-        h5_file = os.path.join(OUTPUT_FOLDER, os.path.basename(label_file).replace(".txt", ".h5"))
+        h5_file = OUTPUT_FOLDER / (Path(label_file).stem + ".h5")
         with h5py.File(h5_file, 'w') as hf:
             hf.create_dataset('density', data=density_map)
 
         # Guardar mapa de densidad simple como PNG
-        png_file = os.path.join(OUTPUT_FOLDER, os.path.basename(label_file).replace(".txt", ".png"))
-        save_density_image(density_map, png_file)
+        png_file = OUTPUT_FOLDER / (Path(label_file).stem + ".png")
+        save_density_image(density_map, str(png_file))
 
         if PREVIEW and i < PREVIEW_N:
-            preview_file = os.path.join(OUTPUT_FOLDER, os.path.basename(label_file).replace(".txt", "_preview.png"))
-            save_preview(img_file, density_map, preview_file)
+            preview_file = OUTPUT_FOLDER / (Path(label_file).stem + "_preview.png")
+            save_preview(str(img_file), density_map, str(preview_file))
 
         json_list.append({
-            "image": img_file,
-            "density": h5_file,
+            "image": str(img_file),
+            "density": str(h5_file),
             "label": 1
         })
 
         # ✅ Depuración: mostrar suma y número de puntos
-        print(f"{os.path.basename(label_file)} -> {len(points)} puntos, suma densidad={density_map.sum():.2f}")
+        print(f"{Path(label_file).name} -> {len(points)} puntos, suma densidad={density_map.sum():.2f}")
 
     # Guardar JSON completo
-    json_path = os.path.join(dataset_dir, JSON_FILENAME)
+    json_path = data_split_dir / JSON_FILENAME
     with open(json_path, "w") as f:
         json.dump(json_list, f, indent=4)
 

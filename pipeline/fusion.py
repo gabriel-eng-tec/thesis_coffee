@@ -91,5 +91,3 @@ plt.subplot(1, 3, 3)
 plt.imshow(fused > 0.5, cmap='gray')
 plt.title("Regiones destacadas (umbral 0.5)")
 plt.show()
-
-

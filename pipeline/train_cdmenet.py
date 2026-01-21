@@ -19,45 +19,44 @@ from torch.utils.data import Dataset, DataLoader
 from torchvision import transforms
 from tqdm import tqdm
 
-from model_cdmenet import CDMENet
-from util_mutual_exec import (
+from models.cdmenet import CDMENet
+from utils.mutual_exec import (
     densitymap_to_densitymask,
     unlabel_CE_loss2v1, unlabel_CE_loss3v1, unlabel_CE_loss4v1,
     mutual_exclusion_loss, cross_entropy_loss, WEIGHTS, DENSITY_THRESHOLDS
+)
+from config import (
+    TRAIN_JSON, VAL_JSON, CDMENET_CHECKPOINTS,
+    DEVICE, RANDOM_SEED,
+    CDMENET_LEARNING_RATE, CDMENET_WEIGHT_DECAY, CDMENET_BATCH_SIZE,
+    CDMENET_EPOCHS, CDMENET_BLOCK_SIZE, CDMENET_WARMUP_EPOCHS, CDMENET_IMAGE_SIZE,
+    NORMALIZE_MEAN, NORMALIZE_STD
 )
 
 # ============================================================
 # ⚙️ CONFIGURACIÓN GLOBAL
 # ============================================================
-dataset_dir = "../dataset/coffee_Fruit_Maturity_yolo"
-TRAIN_JSON = f"{dataset_dir}/train/cdmenet_coffee_train.json"
-VAL_JSON = f"{dataset_dir}/valid/cdmenet_coffee_valid.json"
-#TRAIN_JSON = f"{dataset_dir}/valid/cdmenet_coffee_valid.json"
-#VAL_JSON = f"{dataset_dir}/test/cdmenet_coffee_test.json"
-OUTPUT_DIR = "../models/cdmenet/checkpoints"
-
-DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
+OUTPUT_DIR = CDMENET_CHECKPOINTS
 
 # Reproducibilidad
-rand_seed = 123456
-np.random.seed(rand_seed)
-torch.manual_seed(rand_seed)
+np.random.seed(RANDOM_SEED)
+torch.manual_seed(RANDOM_SEED)
 if torch.cuda.is_available():
-    torch.cuda.manual_seed(rand_seed)
+    torch.cuda.manual_seed(RANDOM_SEED)
 
 # Hiperparámetros
-LEARNING_RATE = 1e-4
-WEIGHT_DECAY = 1e-4
-BATCH_SIZE = 4
-EPOCHS_TOTAL = 300
-BLOCK_SIZE = 20
-EPOCH_WARMUP = 4
-IMAGE_SIZE = 512
+LEARNING_RATE = CDMENET_LEARNING_RATE
+WEIGHT_DECAY = CDMENET_WEIGHT_DECAY
+BATCH_SIZE = CDMENET_BATCH_SIZE
+EPOCHS_TOTAL = CDMENET_EPOCHS
+BLOCK_SIZE = CDMENET_BLOCK_SIZE
+EPOCH_WARMUP = CDMENET_WARMUP_EPOCHS
+IMAGE_SIZE = CDMENET_IMAGE_SIZE
 
-os.makedirs(OUTPUT_DIR, exist_ok=True)
+OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
-CHECKPOINT_PATH = os.path.join(OUTPUT_DIR, "cdmenet_checkpoint.pth")
-BEST_MODEL_PATH = os.path.join(OUTPUT_DIR, "cdmenet_epoch_best.pth")
+CHECKPOINT_PATH = OUTPUT_DIR / "cdmenet_checkpoint.pth"
+BEST_MODEL_PATH = OUTPUT_DIR / "cdmenet_epoch_best.pth"
 
 # ============================================================
 # 🧱 DATASET
@@ -296,8 +295,7 @@ def main():
     transform = transforms.Compose([
         transforms.Resize((IMAGE_SIZE, IMAGE_SIZE)),
         transforms.ToTensor(),
-        transforms.Normalize(mean=[0.4931, 0.5346, 0.3792],
-                             std=[0.2217, 0.2025, 0.2085])
+        transforms.Normalize(mean=NORMALIZE_MEAN, std=NORMALIZE_STD)
     ])
 
     # Datasets y DataLoaders

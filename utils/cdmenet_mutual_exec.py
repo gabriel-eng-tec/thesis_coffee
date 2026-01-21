@@ -14,21 +14,14 @@ import os
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from config import DENSITY_THRESHOLDS, LOSS_WEIGHTS
 
 # ============================================================
-# 🔧 CONFIGURACIÓN GLOBAL — FÁCIL DE AJUSTAR
+# 🔧 CONFIGURACIÓN GLOBAL (importada desde config.py)
 # ============================================================
-DENSITY_THRESHOLDS = {
-    "low": 0.0015,
-    "mid": 0.0100
-}
+DENSITY_THRESHOLDS = DENSITY_THRESHOLDS_CDMENET
 
-WEIGHTS = {
-    "density_loss": 1.0,
-    "class_loss": 0.01,
-    "mutual_exc": 1.0,
-    "semi_supervised": 0.01
-}
+WEIGHTS = LOSS_WEIGHTS_CDMENET
 
 EPS = 1e-6
 

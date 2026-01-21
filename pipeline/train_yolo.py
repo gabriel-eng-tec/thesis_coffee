@@ -10,30 +10,32 @@ import time
 import torch
 import numpy as np
 from tqdm import tqdm
-from ultralytics import YOLO
-from ultralytics.yolo.utils import LOGGER
+from models.yolo import YOLO
+from config import (
+    YOLO_DATA_YAML, YOLO_CHECKPOINTS,
+    DEVICE, RANDOM_SEED,
+    YOLO_IMAGE_SIZE, YOLO_EPOCHS, YOLO_WARMUP_EPOCHS,
+    YOLO_BATCH_SIZE, YOLO_LEARNING_RATE, YOLO_WEIGHT_DECAY, YOLO_BLOCK_SIZE,
+    YOLO_WEIGHTS_PTH
+)
 
 # ============================================================
 # ⚙️ CONFIGURACIÓN GLOBAL
 # ============================================================
-DATASET_DIR = "../dataset/coffee_Fruit_Maturity_yolo"
-DATA_YAML = f"{DATASET_DIR}/data.yaml"
-OUTPUT_DIR = "../models/yolov8m_cdmenet_style"
+OUTPUT_DIR = YOLO_CHECKPOINTS
+OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
-os.makedirs(OUTPUT_DIR, exist_ok=True)
-DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
+# Hiperparámetros (importados desde config.py)
+IMAGE_SIZE = YOLO_IMAGE_SIZE
+EPOCHS_TOTAL = YOLO_EPOCHS
+EPOCH_WARMUP = YOLO_WARMUP_EPOCHS
+BATCH_SIZE = YOLO_BATCH_SIZE
+LEARNING_RATE = YOLO_LEARNING_RATE
+WEIGHT_DECAY = YOLO_WEIGHT_DECAY
+BLOCK_SIZE = YOLO_BLOCK_SIZE
 
-# Hiperparámetros
-IMAGE_SIZE = 1024
-EPOCHS_TOTAL = 100
-EPOCH_WARMUP = 5
-BATCH_SIZE = 8
-LEARNING_RATE = 1e-3
-WEIGHT_DECAY = 1e-4
-BLOCK_SIZE = 20  # guardar checkpoint cada 20 epochs
-
-CHECKPOINT_PATH = os.path.join(OUTPUT_DIR, "yolo_checkpoint.pth")
-BEST_MODEL_PATH = os.path.join(OUTPUT_DIR, "yolo_best.pth")
+CHECKPOINT_PATH = OUTPUT_DIR / "yolo_checkpoint.pth"
+BEST_MODEL_PATH = OUTPUT_DIR / "yolo_best.pth"
 
 # ============================================================
 # 🧱 UTILIDAD
@@ -136,7 +138,7 @@ def main():
     print("GPU:", torch.cuda.get_device_name(0) if torch.cuda.is_available() else "CPU")
 
     # Crear modelo YOLO desde pesos base
-    model = YOLO(f"../models/yolov8m/yolov8m-seg.pt").to(DEVICE)
+    model = YOLO(str(YOLO_WEIGHTS_PTH)).model.to(DEVICE)
     optimizer = torch.optim.AdamW(model.model.parameters(), lr=LEARNING_RATE, weight_decay=WEIGHT_DECAY)
 
     # Dataset con método interno de YOLO (para compatibilidad rápida)
